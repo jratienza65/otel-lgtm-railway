@@ -1,0 +1,64 @@
+# Configuration file version
+# See here fore more information on configuration:
+# https://grafana.com/docs/grafana/latest/administration/provisioning/#example-data-source-configuration-file
+apiVersion: 1
+
+# Mark provisioned data sources for deletion if they are no longer in a provisioning file.
+prune: false
+
+# List of data sources to insert/update depending on what's available.
+datasources:
+  - name: Loki
+    type: loki
+    uid: loki
+    url: $RAILWAY_LOKI_ENDPOINT
+    editable: true
+    jsonData:
+      derivedFields:
+        - name: 'trace_id'
+          matcherType: 'label'
+          matcherRegex: 'trace_id'
+          url: '$${__value.raw}'
+          datasourceUid: 'tempo'
+          urlDisplayLabel: 'Trace: $${__value.raw}'
+    isDefault: true
+
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: $RAILWAY_PROMETHEUS_ENDPOINT
+    editable: true
+    jsonData:
+      timeInterval: 60s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          urlDisplayLabel: 'Trace: $${__value.raw}'
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: $RAILWAY_TEMPO_ENDPOINT
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        customQuery: true
+        datasourceUid: 'loki'
+        query: '{$${__tags}} | trace_id = "$${__trace.traceId}"'
+        tags:
+          - key: 'service.name'
+            value: 'service_name'
+      serviceMap:
+        datasourceUid: 'prometheus'
+      search:
+        hide: false
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: 'loki'
+
+  # - name: Pyroscope
+  #   type: grafana-pyroscope-datasource
+  #   uid: pyroscope
+  #   url: $RAILWAY_PYROSCOPE_ENDPOINT
+
