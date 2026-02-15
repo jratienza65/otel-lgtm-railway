@@ -1,0 +1,76 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+  prometheus/collector:
+    config:
+      scrape_configs:
+        - job_name: "opentelemetry-collector"
+          scrape_interval: 1s
+          static_configs:
+            - targets: ["127.0.0.1:8888"]
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: "/ready"
+
+processors:
+  batch:
+
+exporters:
+  otlphttp/external:
+    endpoint: ${env:RAILWAY_OTEL_EXPORTER_OTLP_ENDPOINT}
+    tls: 
+      insecure: ${env:RAILWAY_OTEL_EXPORTER_OTLP_IS_INSECURE:-true}
+  otlphttp/metrics:
+    endpoint: ${env:RAILWAY_PROMETHEUS_ENDPOINT}
+    tls:
+      insecure: true
+  otlphttp/traces:
+    endpoint: ${env:RAILWAY_TEMPO_ENDPOINT}
+    tls:
+      insecure: true
+  otlphttp/logs:
+    endpoint: ${env:RAILWAY_LOKI_ENDPOINT}
+    tls:
+      insecure: true
+  # otlp/profiles:
+  #   endpoint: $RAILWAY_PYROSCOPE_ENDPOINT
+  #   tls:
+  #     insecure: true
+  debug/metrics:
+    verbosity: detailed
+  debug/traces:
+    verbosity: detailed
+  debug/logs:
+    verbosity: detailed
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/traces, otlphttp/external]
+      #exporters: [otlphttp/traces,debug/traces]
+    metrics:
+      receivers: [otlp, prometheus/collector]
+      processors: [batch]
+      exporters: [otlphttp/metrics, otlphttp/external]
+      #exporters: [otlphttp/metrics,debug/metrics]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/logs, otlphttp/external]
+      #exporters: [otlphttp/logs,debug/logs]
+    # profiles:
+    #   receivers: [otlp]
+    #   exporters: [otlp/profiles]
