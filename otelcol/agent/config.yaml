@@ -1,3 +1,16 @@
+# Edge collector: one per application project. It receives that project's OTLP
+# and forwards everything to a central gateway (otelcol/gateway) rather than
+# writing to Loki/Tempo/Prometheus directly.
+#
+# Forwarding rather than writing is deliberate: the gateway is the one place
+# that owns how telemetry reaches the stores — batch/logs (a record cap sized
+# to keep a push under Loki's gRPC message limit) today, and any processing
+# added later. Writing to the stores from here would bypass all of it.
+#
+# One config serves every project: each project's agent service points its root
+# directory here and differs only by environment variables
+# (RAILWAY_OTEL_EXPORTER_OTLP_ENDPOINT, RAILWAY_OTEL_UPSTREAM_AUTHORIZATION,
+# RAILWAY_DEPLOYMENT_ENVIRONMENT).
 receivers:
   otlp:
     protocols:
@@ -13,7 +26,7 @@ receivers:
     config:
       scrape_configs:
         - job_name: "opentelemetry-collector"
-          scrape_interval: 1s
+          scrape_interval: 15s
           static_configs:
             - targets: ["127.0.0.1:8888"]
 
@@ -25,27 +38,57 @@ extensions:
 processors:
   batch:
 
+  # Coarse environment default. Applies to anything that does not carry a finer
+  # per-service environment of its own (collector self-metrics, app OTLP).
+  # Railway is not Kubernetes, so stamp only the vendor-neutral
+  # deployment.environment.name — never k8s.*, which would be a false attribute
+  # on Railway-produced telemetry.
+  resource/railway:
+    attributes:
+      - key: deployment.environment.name
+        value: ${env:RAILWAY_DEPLOYMENT_ENVIRONMENT:-prod}
+        action: upsert
+
+  # Traces: PRESERVE any environment the source already set (an app SDK may
+  # stamp its own); only fill in the default when absent. `insert`, not
+  # `upsert` — a plain upsert would overwrite a span's real dev/staging
+  # environment with this agent's coarse default.
+  resource/railway_traces:
+    attributes:
+      - key: deployment.environment.name
+        value: ${env:RAILWAY_DEPLOYMENT_ENVIRONMENT:-prod}
+        action: insert
+
+  # The prometheus receiver maps job -> service.name and instance ->
+  # service.instance.id as RESOURCE attributes. Copy them back onto up/scrape_*
+  # as datapoint attributes BEFORE stripping, otherwise every scrape target
+  # collapses into a single indistinguishable up series downstream.
+  transform/preserve_prom_meta_identity:
+    error_mode: ignore
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["job"], resource.attributes["service.name"]) where (metric.name == "up" or IsMatch(metric.name, "^scrape_")) and resource.attributes["service.name"] != nil
+          - set(attributes["instance"], resource.attributes["service.instance.id"]) where (metric.name == "up" or IsMatch(metric.name, "^scrape_")) and resource.attributes["service.instance.id"] != nil
+
+  # Applied only to the scrape pipeline, so OTLP metrics keep their own
+  # service.name. Scraped series should be identified by job/instance instead.
+  resource/strip_prom_identity:
+    attributes:
+      - key: service.name
+        action: delete
+      - key: service.instance.id
+        action: delete
+
 exporters:
   otlphttp/external:
     endpoint: ${env:RAILWAY_OTEL_EXPORTER_OTLP_ENDPOINT}
-    tls: 
-      insecure: ${env:RAILWAY_OTEL_EXPORTER_OTLP_IS_INSECURE:-true}
-  otlphttp/metrics:
-    endpoint: ${env:RAILWAY_PROMETHEUS_ENDPOINT}
-    tls:
-      insecure: true
-  otlphttp/traces:
-    endpoint: ${env:RAILWAY_TEMPO_ENDPOINT}
-    tls:
-      insecure: true
-  otlphttp/logs:
-    endpoint: ${env:RAILWAY_LOKI_ENDPOINT}
-    tls:
-      insecure: true
-  # otlp/profiles:
-  #   endpoint: $RAILWAY_PYROSCOPE_ENDPOINT
-  #   tls:
-  #     insecure: true
+    # Credential for the gateway's basicauth/server. The `:-` empty default
+    # matters: a missing variable then yields an empty header (401s at runtime,
+    # visible in the logs) rather than a startup FATAL that crash-loops the
+    # service. Format: "Basic $(printf '%s' user:pass | base64)".
+    headers:
+      "Authorization": "${env:RAILWAY_OTEL_UPSTREAM_AUTHORIZATION:-}"
   debug/metrics:
     verbosity: detailed
   debug/traces:
@@ -56,21 +99,33 @@ exporters:
 service:
   extensions: [health_check]
   pipelines:
+    # App traces. resource/railway_traces preserves a source-set environment and
+    # only supplies the default when one is absent.
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlphttp/traces, otlphttp/external]
-      #exporters: [otlphttp/traces,debug/traces]
-    metrics:
-      receivers: [otlp, prometheus/collector]
-      processors: [batch]
-      exporters: [otlphttp/metrics, otlphttp/external]
-      #exporters: [otlphttp/metrics,debug/metrics]
+      processors: [resource/railway_traces, batch]
+      exporters: [otlphttp/external]
+      #exporters: [debug/traces]
+    # App metrics received over OTLP — these keep their own service.name.
+    metrics/otlp:
+      receivers: [otlp]
+      processors: [resource/railway, batch]
+      exporters: [otlphttp/external]
+      #exporters: [debug/metrics]
+    # Prometheus scrapes, kept separate so the prom-identity handling applies
+    # only to scraped series.
+    metrics/scrape:
+      receivers: [prometheus/collector]
+      processors:
+        [
+          resource/railway,
+          transform/preserve_prom_meta_identity,
+          resource/strip_prom_identity,
+          batch
+        ]
+      exporters: [otlphttp/external]
     logs:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlphttp/logs, otlphttp/external]
-      #exporters: [otlphttp/logs,debug/logs]
-    # profiles:
-    #   receivers: [otlp]
-    #   exporters: [otlp/profiles]
+      processors: [resource/railway, batch]
+      exporters: [otlphttp/external]
+      #exporters: [debug/logs]
