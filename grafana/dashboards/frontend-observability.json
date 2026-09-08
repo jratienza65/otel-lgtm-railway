@@ -2,7 +2,12 @@
   "uid": "faro-frontend",
   "title": "Faro — Frontend Observability",
   "description": "Self-hosted mimic of Grafana Cloud Frontend Observability (FEO11y), over Loki service_namespace=\"faro\". Rows: Overview, Core Web Vitals (p75, thresholded), Errors, Sessions, Page performance, Page load + HTTP. Only resource attrs are indexed LABELS; kind and the Faro line fields are STRUCTURED METADATA / logfmt fields — filter kind with `| kind=\"…\"` and the rest with `| logfmt | field=~\"…\"`. Web-vital p75 thresholds follow web.dev.",
-  "tags": ["faro", "frontend", "rum", "feo11y"],
+  "tags": [
+    "faro",
+    "frontend",
+    "rum",
+    "feo11y"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -129,7 +134,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -175,7 +182,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -233,7 +242,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -279,7 +290,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -325,7 +338,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -371,7 +386,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -423,7 +440,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -488,7 +507,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -549,7 +570,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -611,7 +634,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -674,7 +699,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -736,7 +763,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -798,7 +827,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -860,7 +891,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -1401,7 +1434,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -1416,7 +1451,7 @@
           },
           "editorMode": "code",
           "queryType": "range",
-          "expr": "sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "expr": "label_replace(sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto])), \"browser_name\", \"unknown\", \"browser_name\", \"^$\")",
           "legendFormat": "{{browser_name}}"
         }
       ]
@@ -1608,11 +1643,16 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
-          "values": ["value", "percent"]
+          "values": [
+            "value",
+            "percent"
+          ]
         },
         "pieType": "donut",
         "reduceOptions": {
-          "calcs": ["sum"],
+          "calcs": [
+            "sum"
+          ],
           "values": false
         }
       },
@@ -1625,7 +1665,7 @@
           },
           "editorMode": "code",
           "queryType": "range",
-          "expr": "sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "expr": "label_replace(sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto])), \"browser_name\", \"unknown\", \"browser_name\", \"^$\")",
           "legendFormat": "{{browser_name}}"
         }
       ]
@@ -1667,7 +1707,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -1863,7 +1905,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "count by (browser_name) (sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range])))"
+          "expr": "label_replace(count by (browser_name) (sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range]))), \"browser_name\", \"unknown\", \"browser_name\", \"^$\")"
         }
       ]
     },
@@ -1946,7 +1988,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "topk(25, sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range])))"
+          "expr": "label_replace(topk(25, sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range]))), \"browser_name\", \"unknown\", \"browser_name\", \"^$\")"
         }
       ]
     },
@@ -2205,7 +2247,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2258,7 +2302,10 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["mean", "max"]
+          "calcs": [
+            "mean",
+            "max"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -2524,7 +2571,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2583,7 +2632,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2648,7 +2699,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2665,28 +2718,8 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "queryType": "instant",
-          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "type": "math",
-          "expression": "($B / $A) * 100"
+          "expr": "(sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__range])) / sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))) * 100",
+          "hide": false
         }
       ]
     },
@@ -2716,7 +2749,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2733,28 +2768,8 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "queryType": "instant",
-          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_ttfb [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "type": "math",
-          "expression": "($B / $A)"
+          "expr": "(sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_ttfb [$__range])) / sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range])))",
+          "hide": false
         }
       ]
     },
@@ -2784,7 +2799,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2801,28 +2818,8 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "queryType": "instant",
-          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_duration_ns [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "type": "math",
-          "expression": "($B / $A)"
+          "expr": "(sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_duration_ns [$__range])) / sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range])))",
+          "hide": false
         }
       ]
     },
@@ -2852,7 +2849,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2869,28 +2868,8 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "queryType": "instant",
-          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_transferSize [$__range]))",
-          "hide": true
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "type": "math",
-          "expression": "($B / $A)"
+          "expr": "(sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_transferSize [$__range])) / sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range])))",
+          "hide": false
         }
       ]
     },
@@ -3227,7 +3206,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -3292,7 +3273,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -3344,7 +3327,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["max"]
+          "calcs": [
+            "max"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -3395,7 +3380,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
@@ -3461,7 +3448,9 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["sum"]
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi"
