@@ -1,0 +1,25 @@
+# Authentication overlay, merged on top of config.yaml by entrypoint.sh when
+# RAILWAY_OTEL_HTPASSWD is set. otelcol deep-merges multiple --config sources,
+# so this file carries only the auth delta — the receiver endpoints, pipelines
+# and exporters all come from config.yaml and are not repeated here.
+extensions:
+  # The htpasswd holds one username:password line per producer, so any single
+  # producer can be revoked or rotated independently of the others. Plaintext
+  # lines work; so does a bcrypt hash from `htpasswd -nbB <user> <password>`.
+  # The value is injected via a Railway variable and is NEVER committed.
+  basicauth/server:
+    htpasswd:
+      inline: ${env:RAILWAY_OTEL_HTPASSWD}
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth/server
+      http:
+        auth:
+          authenticator: basicauth/server
+
+service:
+  extensions: [health_check, basicauth/server]

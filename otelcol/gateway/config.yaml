@@ -1,3 +1,5 @@
+# Base config: no authentication. entrypoint.sh merges auth.yaml on top of this
+# when credentials are supplied — see the Dockerfile.
 receivers:
   otlp:
     protocols:
