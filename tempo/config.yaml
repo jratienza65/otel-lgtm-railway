@@ -13,8 +13,14 @@ distributor:
 
 ingester:
   trace_idle_period: 1s
-  max_block_duration: 1s
+  # Cutting a block every second produces thousands of tiny blocks, which the
+  # compactor cannot keep up with and which makes trace search beyond the most
+  # recent hours unusably slow. 5m blocks with a 1GB cap keep the block count
+  # sane while staying near-realtime for search.
+  max_block_duration: 5m
   flush_check_period: 1s
+  max_block_bytes: 1073741824 # 1GB
+  complete_block_timeout: 15m
   lifecycler:
     address: 127.0.0.1
     ring:
@@ -31,6 +37,13 @@ querier:
   frontend_worker:
     frontend_address: 127.0.0.1:9096
 
+query_frontend:
+  search:
+    max_duration: 0 # no cap on the search time range
+    default_result_limit: 200
+  metrics:
+    max_duration: 168h # TraceQL metrics query window
+
 storage:
   trace:
     backend: local
@@ -43,6 +56,11 @@ metrics_generator:
   processor:
     local_blocks:
       filter_server_spans: false
+      # Persist local blocks to the backend so TraceQL metrics (the RED metrics
+      # in Grafana Traces Drilldown) are computed over full trace history rather
+      # than only the recent in-memory window (~30m). Without this, metrics
+      # query_range reads 0 backend blocks and shows "No data" beyond ~30m.
+      flush_to_storage: true
     span_metrics:
       dimensions:
         - service_name
@@ -55,6 +73,21 @@ metrics_generator:
     remote_write:
       - url: ${RAILWAY_PROMETHEUS_REMOTE_WRITE_ENDPOINT}
         send_exemplars: true
+
+compactor:
+  compaction:
+    max_block_bytes: 5368709120 # 5GB
+    # Tempo's default. A small value here effectively disables compaction and
+    # leaves thousands of tiny blocks behind, which breaks trace search beyond
+    # recent hours.
+    max_compaction_objects: 6000000
+    compaction_cycle: 30s
+    compacted_block_retention: 168h
+    retention_concurrency: 10
+    block_retention: 2160h # 90d of traces
+    v2_in_buffer_bytes: 5242880 # 5MB
+    v2_out_buffer_bytes: 20971520 # 20MB
+    v2_prefetch_traces_count: 1000
 
 overrides:
   metrics_generator_processors: [service-graphs, local-blocks, span-metrics]
