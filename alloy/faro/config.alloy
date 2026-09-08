@@ -1,0 +1,134 @@
+// Faro ingest for browser and mobile clients.
+//
+// Everything here forwards to the collector gateway rather than to Tempo/Loki
+// directly. That is deliberate: otelcol/gateway is the single write path into
+// the stores and owns `batch/logs` (a record cap sized to keep a push under
+// Loki's gRPC message limit). Writing to the stores from here would bypass it,
+// and Loki 503s on oversized batches.
+
+faro.receiver "clients" {
+	// Loki labels come only from this map. An empty value tells the receiver to
+	// copy the key from the Faro payload, so each line carries the app's own
+	// identity. otelcol.processor.transform.faro_logs lifts these onto the
+	// resource, which is where Loki reads service.name from.
+	extra_log_labels = {
+		app_name        = "",
+		app_version     = "",
+		app_environment = "",
+		kind            = "",
+	}
+
+	server {
+		// Railway's private network is dual-stack. "[::]" binds both families, so
+		// the public domain and sibling services reach it either way. The brackets
+		// are required: this value is joined to the port with a bare colon, and a
+		// plain "::" yields ":::12347", which Go refuses to listen on.
+		listen_address = "[::]"
+		listen_port    = 12347
+
+		// Browsers enforce this list; native shells and curl do not. A wildcard
+		// here would let any site write into your logs, so there isn't one.
+		//
+		// Set FARO_CORS_ALLOWED_ORIGINS to a comma-separated list of your deployed
+		// frontend origins. It REPLACES the fallback rather than adding to it, so
+		// a deployment that sets it does not keep localhost allowed in production.
+		// Changing it is a variable edit and a restart — no image rebuild.
+		//
+		// The fallback is the set that is useful with no configuration at all:
+		// local dev servers, plus the origins Capacitor and Ionic webviews send as
+		// Origin on iOS and Android.
+		cors_allowed_origins = string.split(coalesce(
+			sys.env("FARO_CORS_ALLOWED_ORIGINS"),
+			"capacitor://localhost,ionic://localhost,http://localhost,https://localhost,http://localhost:3000,http://localhost:5173",
+		), ",")
+
+		// Every client sends this as `x-api-key`; a wrong or missing key gets 401.
+		// The key ships inside app bundles, so it filters noise rather than
+		// authenticates. The rate limit, the payload cap and whatever CDN or WAF
+		// sits in front are the real controls on this public write path.
+		api_key = sys.env("FARO_API_KEY")
+
+		// A Faro batch is a few KB. Anything near the 5 MiB default is not a client.
+		max_allowed_payload_size = "1MiB"
+
+		// One budget per app and environment, so a noisy frontend cannot starve
+		// the rest.
+		rate_limiting {
+			enabled    = true
+			strategy   = "per_app"
+			rate       = 50
+			burst_size = 100
+		}
+	}
+
+	output {
+		logs   = [otelcol.receiver.loki.faro.receiver]
+		traces = [otelcol.processor.batch.faro.input]
+	}
+}
+
+// faro.receiver emits logs in Loki's form; the gateway speaks OTLP. The labels
+// land as log record attributes here, not on the resource.
+otelcol.receiver.loki "faro" {
+	output {
+		logs = [otelcol.processor.transform.faro_logs.input]
+	}
+}
+
+// Loki indexes service.name, service.namespace and deployment.environment.name
+// from RESOURCE attributes on OTLP ingest. Without this lift every Faro line
+// lands under service_name="unknown_service". otelcol.receiver.loki builds a
+// fresh plog.Logs per entry, so writing the resource from the log context is
+// safe. service.namespace="faro" gives Loki one selector for retention and
+// dashboards; the record keeps `kind` as structured metadata.
+otelcol.processor.transform "faro_logs" {
+	error_mode = "ignore"
+
+	log_statements {
+		context    = "log"
+		statements = [
+			`set(resource.attributes["service.name"], log.attributes["app_name"]) where log.attributes["app_name"] != nil`,
+			`set(resource.attributes["service.version"], log.attributes["app_version"]) where log.attributes["app_version"] != nil`,
+			`set(resource.attributes["deployment.environment.name"], log.attributes["app_environment"]) where log.attributes["app_environment"] != nil`,
+			`set(resource.attributes["service.namespace"], "faro")`,
+			`delete_key(log.attributes, "app_name")`,
+			`delete_key(log.attributes, "app_version")`,
+			`delete_key(log.attributes, "app_environment")`,
+			`delete_key(log.attributes, "loki.attribute.labels")`,
+		]
+	}
+
+	output {
+		logs = [otelcol.processor.batch.faro.input]
+	}
+}
+
+otelcol.processor.batch "faro" {
+	output {
+		logs   = [otelcol.exporter.otlphttp.gateway.input]
+		traces = [otelcol.exporter.otlphttp.gateway.input]
+	}
+}
+
+// Its own producer line in the gateway's htpasswd, so this credential can be
+// revoked or rotated without touching any other producer.
+otelcol.auth.basic "gateway" {
+	username = sys.env("OTEL_UPSTREAM_USERNAME")
+	password = sys.env("OTEL_UPSTREAM_PASSWORD")
+}
+
+otelcol.exporter.otlphttp "gateway" {
+	client {
+		// Point this at the gateway's Railway private address, e.g.
+		// http://opentelemetry-collector.railway.internal:4318 — the private
+		// domain is derived from the SERVICE name, not a short alias. Plaintext is
+		// acceptable because this hop never leaves the project; the public
+		// endpoint requires TLS.
+		endpoint = sys.env("OTEL_EXPORTER_OTLP_ENDPOINT")
+		auth     = otelcol.auth.basic.gateway.handler
+
+		tls {
+			insecure = true
+		}
+	}
+}
