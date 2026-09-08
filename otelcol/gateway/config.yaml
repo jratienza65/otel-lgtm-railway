@@ -24,6 +24,12 @@ extensions:
 
 processors:
   batch:
+  # Logs-only batch with a hard record cap so a single push to Loki stays well
+  # under its gRPC message-size limit (avoids 503 drops on big batches).
+  batch/logs:
+    send_batch_size: 1000
+    send_batch_max_size: 2000
+    timeout: 1s
 
 exporters:
   otlphttp/metrics:
@@ -64,7 +70,7 @@ service:
       #exporters: [otlphttp/metrics,debug/metrics]
     logs:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch/logs]
       exporters: [otlphttp/logs]
       #exporters: [otlphttp/logs,debug/logs]
     # profiles:
