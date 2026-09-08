@@ -1,0 +1,3551 @@
+{
+  "uid": "faro-frontend",
+  "title": "Faro — Frontend Observability",
+  "description": "Self-hosted mimic of Grafana Cloud Frontend Observability (FEO11y), over Loki service_namespace=\"faro\". Rows: Overview, Core Web Vitals (p75, thresholded), Errors, Sessions, Page performance, Page load + HTTP. Only resource attrs are indexed LABELS; kind and the Faro line fields are STRUCTURED METADATA / logfmt fields — filter kind with `| kind=\"…\"` and the rest with `| logfmt | field=~\"…\"`. Web-vital p75 thresholds follow web.dev.",
+  "tags": ["faro", "frontend", "rum", "feo11y"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "Environment",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({service_namespace=\"faro\"}, deployment_environment_name)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "app",
+        "label": "Application",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({service_namespace=\"faro\"}, service_name)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "browser",
+        "label": "Browser",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "os",
+        "label": "OS",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "page",
+        "label": "Page URL",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "view",
+        "label": "View",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 1,
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Sessions",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "count(sum by (session_id) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "Page views",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"view_changed\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "Events",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 6,
+      "title": "Measurements",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 7,
+      "title": "Apps reporting",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "count(sum by (service_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 8,
+      "title": "Sessions & page views over time",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "sessions",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "count(sum by (session_id) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id [$__auto])))",
+          "legendFormat": "sessions"
+        },
+        {
+          "refId": "views",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"view_changed\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "page views"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 9,
+      "title": "Errors over time by app",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum by (service_name, deployment_environment_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "{{service_name}} ({{deployment_environment_name}})"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 10,
+      "title": "LCP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2500
+              },
+              {
+                "color": "red",
+                "value": 4000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap lcp [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 11,
+      "title": "INP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap inp [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 12,
+      "title": "CLS p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap cls [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 13,
+      "title": "FCP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1800
+              },
+              {
+                "color": "red",
+                "value": 3000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap fcp [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 14,
+      "title": "TTFB p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 800
+              },
+              {
+                "color": "red",
+                "value": 1800
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap ttfb [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 15,
+      "title": "Page load p75 (onLoad)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2500
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap onLoadTime [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 16,
+      "title": "Core Web Vitals (p75)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 17,
+      "title": "LCP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2500
+              },
+              {
+                "color": "red",
+                "value": 4000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap lcp [$__auto]) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 18,
+      "title": "INP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap inp [$__auto]) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 19,
+      "title": "CLS p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap cls [$__auto]) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 20,
+      "title": "FCP p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1800
+              },
+              {
+                "color": "red",
+                "value": 3000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap fcp [$__auto]) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 21,
+      "title": "TTFB p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 800
+              },
+              {
+                "color": "red",
+                "value": 1800
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap ttfb [$__auto]) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 22,
+      "title": "LCP p75 by view",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LCP p75"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 2500
+                    },
+                    {
+                      "color": "red",
+                      "value": 4000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "LCP p75",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "view_name": "View"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "LCP p75"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap lcp [$__range]) by (view_name)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 23,
+      "title": "Errors",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 24,
+      "title": "Errors over time by browser",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "{{browser_name}}"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 25,
+      "title": "Top exceptions",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 37
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Count"
+              },
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Count",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "type": "Type",
+              "value": "Message"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Count"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(25, sum by (type, value) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep type, value [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 26,
+      "title": "Errors by page",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Count"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Count",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "page_url": "Page"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Count"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(25, sum by (page_url) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep page_url [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "piechart",
+      "id": 27,
+      "title": "Errors by browser",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 44
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value", "percent"]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum by (browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "{{browser_name}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 28,
+      "title": "Sessions with an error",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "count(sum by (session_id) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "id": 29,
+      "title": "Recent exceptions (open a line for the trace link)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "{service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\""
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 30,
+      "title": "Sessions",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 31,
+      "title": "Sessions over time",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 60
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "count(sum by (session_id) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id [$__auto])))",
+          "legendFormat": "sessions"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 32,
+      "title": "Sessions by browser",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Sessions"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Sessions",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "browser_name": "Browser"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Sessions"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "count by (browser_name) (sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 33,
+      "title": "Top sessions by errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Errors"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Errors",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "session_id": "Session",
+              "browser_name": "Browser"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Errors"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(25, sum by (session_id, browser_name) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"exception\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep session_id, browser_name [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 34,
+      "title": "Page performance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 75
+      }
+    },
+    {
+      "type": "table",
+      "id": 35,
+      "title": "Page views by page",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 76
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Page views"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Page views",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "page_url": "Page"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Page views"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(30, sum by (page_url) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"view_changed\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | keep page_url [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 36,
+      "title": "LCP p75 by page",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 76
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LCP p75"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 2500
+                    },
+                    {
+                      "color": "red",
+                      "value": 4000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "LCP p75",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "page_url": "Page",
+              "Value": "LCP p75"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "LCP p75"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"measurement\" | logfmt | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap lcp [$__range]) by (page_url)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 37,
+      "title": "Page load",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 85
+      }
+    },
+    {
+      "type": "stat",
+      "id": 38,
+      "title": "Page load p75",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 86
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2500
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_pageLoadTime [$__range])"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 39,
+      "title": "Navigation timing p75 (ms)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 18,
+        "x": 6,
+        "y": 86
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "TTFB",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_ttfb [$__auto])",
+          "legendFormat": "TTFB"
+        },
+        {
+          "refId": "REQ",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_requestTime [$__auto])",
+          "legendFormat": "request"
+        },
+        {
+          "refId": "RES",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_responseTime [$__auto])",
+          "legendFormat": "response"
+        },
+        {
+          "refId": "DOM",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_domProcessingTime [$__auto])",
+          "legendFormat": "DOM processing"
+        },
+        {
+          "refId": "DCL",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_domContentLoadHandlerTime [$__auto])",
+          "legendFormat": "DOMContentLoaded"
+        },
+        {
+          "refId": "OL",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_onLoadTime [$__auto])",
+          "legendFormat": "onLoad"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 40,
+      "title": "Page load time p75 by view",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 93
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2500
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_pageLoadTime [$__auto]) by (view_name)",
+          "legendFormat": "{{view_name}}"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 41,
+      "title": "Page load p75 by view",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 93
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Page load p75"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Page load p75",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "view_name": "View",
+              "Value": "Page load p75"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Page load p75"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.75, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.navigation\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_pageLoadTime [$__range]) by (view_name)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 42,
+      "title": "HTTP",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "type": "stat",
+      "id": 43,
+      "title": "Requests (total)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
+          "hide": false
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 44,
+      "title": "Errors (total)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__range]))",
+          "hide": false
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 45,
+      "title": "Errors (rate)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "($B / $A) * 100"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 46,
+      "title": "TTFB (avg)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_ttfb [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "($B / $A)"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 47,
+      "title": "Duration (avg)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_duration_ns [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "($B / $A)"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 48,
+      "title": "Transfer size (avg)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 101
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decbytes",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_transferSize [$__range]))",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "($B / $A)"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 49,
+      "title": "Slowest (top 10)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 105
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ns"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Duration p95",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "event_data_url_full": "URL"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Duration p95"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(10, quantile_over_time(0.95, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_duration_ns [$__range]) by (event_data_url_full))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 50,
+      "title": "Largest (top 10)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 105
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Transfer size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decbytes"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Transfer size",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "event_data_name": "URL"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Transfer size"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(10, quantile_over_time(0.95, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_transferSize [$__range]) by (event_data_name))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 51,
+      "title": "Erroneous (top 10)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 105
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Errors",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "event_data_server_address": "Domain"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Errors"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(10, sum by (event_data_server_address) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 52,
+      "title": "Most called (top 10)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 105
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Calls",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "event_data_server_address": "Domain"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^Value.*",
+            "renamePattern": "Calls"
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "topk(10, sum by (event_data_server_address) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__range])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 53,
+      "title": "RED metrics",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 113
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "req",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "requests"
+        },
+        {
+          "refId": "err",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__auto]))",
+          "legendFormat": "errors"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 54,
+      "title": "Status codes",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 113
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum by (event_data_http_response_status_code) (count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "{{event_data_http_response_status_code}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 55,
+      "title": "Duration p95 by method",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 113
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ns",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "quantile_over_time(0.95, {service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_duration_ns [$__auto]) by (event_data_http_request_method)",
+          "legendFormat": "{{event_data_http_request_method}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 56,
+      "title": "Calls and erroneous calls",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 120
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 2
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "calls",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" [$__auto]))",
+          "legendFormat": "calls"
+        },
+        {
+          "refId": "err",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(count_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.tracing.fetch\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | event_data_http_response_status_code=~\"0|[45]..\" [$__auto]))",
+          "legendFormat": "erroneous"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 57,
+      "title": "Resource timings (total ms by phase)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 16,
+        "x": 8,
+        "y": 120
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "redirect",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_redirectTime [$__auto]))",
+          "legendFormat": "redirect"
+        },
+        {
+          "refId": "serviceWorker",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_serviceWorkerTime [$__auto]))",
+          "legendFormat": "serviceWorker"
+        },
+        {
+          "refId": "dnsLookup",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_dnsLookupTime [$__auto]))",
+          "legendFormat": "dnsLookup"
+        },
+        {
+          "refId": "tcpHandshake",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_tcpHandshakeTime [$__auto]))",
+          "legendFormat": "tcpHandshake"
+        },
+        {
+          "refId": "tlsNegotiation",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_tlsNegotiationTime [$__auto]))",
+          "legendFormat": "tlsNegotiation"
+        },
+        {
+          "refId": "request",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_requestTime [$__auto]))",
+          "legendFormat": "request"
+        },
+        {
+          "refId": "response",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "range",
+          "expr": "sum(sum_over_time({service_namespace=\"faro\", deployment_environment_name=~\"$env\", service_name=~\"$app\"} | kind=\"event\" | logfmt | event_name=\"faro.performance.resource\" | browser_name=~\"$browser\" | browser_os=~\"$os\" | page_url=~\"$page\" | view_name=~\"$view\" | unwrap event_data_responseTime [$__auto]))",
+          "legendFormat": "response"
+        }
+      ]
+    }
+  ]
+}

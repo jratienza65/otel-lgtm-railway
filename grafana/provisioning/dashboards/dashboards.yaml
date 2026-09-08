@@ -1,0 +1,24 @@
+# Dashboard provider. Grafana reads *.json from `options.path` and keeps the
+# dashboards in sync with the files on every startup.
+# See https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    # Dashboards are baked into the image rather than mounted, so a change needs
+    # a rebuild/redeploy — same model as every config in this repo.
+    disableDeletion: false
+    # Let users edit provisioned dashboards in the UI. Edits are lost on the
+    # next deploy unless they are saved back into the JSON file here.
+    allowUiUpdates: true
+    options:
+      # Deliberately outside Grafana's data directory. That directory is where a
+      # Railway volume gets mounted (the deploy template relocates it with
+      # GF_PATHS_DATA), and a mount shadows anything COPYed underneath it at
+      # build time. Keeping dashboards in /etc/grafana is independent of
+      # wherever GF_PATHS_DATA points.
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false
