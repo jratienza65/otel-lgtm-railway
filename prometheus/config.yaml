@@ -37,3 +37,12 @@ storage:
     # A 10min time window is enough because it can easily absorb retries and network delays.
     out_of_order_time_window: 10m
 
+scrape_configs:
+  # Self-monitoring: scrape Prometheus's own /metrics so the prometheus_*
+  # internal series (TSDB, query engine, HTTP, WAL, scrape health) exist for the
+  # Prometheus dashboards. Native scrape — independent of the OTLP /
+  # remote-write ingestion path. Adds up{job="prometheus"} and
+  # scrape_*{job="prometheus"}.
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
