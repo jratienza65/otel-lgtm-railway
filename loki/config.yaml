@@ -2,6 +2,11 @@ auth_enabled: false
 
 server:
   http_listen_port: 3100
+  # Raised from the 4MB default so OTLP log batches >4MB aren't dropped
+  # (503 ResourceExhausted "grpc: received message larger than max").
+  # Pair this with a record cap on the collector's logs batch processor.
+  grpc_server_max_recv_msg_size: 16777216 # 16MB
+  grpc_server_max_send_msg_size: 16777216 # 16MB
 
 common:
   instance_addr: 127.0.0.1
@@ -14,6 +19,52 @@ common:
   ring:
     kvstore:
       store: inmemory
+
+limits_config:
+  # Tiered retention: a short default, with per-stream overrides for the
+  # streams worth keeping longer (or purging sooner). Highest priority wins
+  # where selectors overlap. Retention is only applied if the compactor below
+  # has retention_enabled: true.
+  retention_period: 30d
+  retention_stream:
+    # Frontend RUM from the Faro receiver (alloy/faro stamps
+    # service.namespace="faro"). Sessions, web vitals and browser exceptions
+    # are useful for a month, not forensic. Give it a higher priority than any
+    # app tier you add below, so a frontend's RUM does not inherit a long app
+    # retention.
+    - selector: '{service_namespace="faro"}'
+      priority: 60
+      period: 30d
+    # Add your own tiers here, e.g. purge a high-volume, low-value stream
+    # early, or keep edge/gateway/auth access logs long for forensics:
+    # - selector: '{service_name="noisy-service"}'
+    #   priority: 100
+    #   period: 48h
+    # - selector: '{service_name=~"(?i)(gateway|proxy|auth.*)"}'
+    #   priority: 50
+    #   period: 365d
+  # Raised from defaults (4MB/s rate, 6MB burst, 3MB/stream) to stop 429
+  # "ingestion rate limit exceeded" throttling. Tune with log volume.
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  per_stream_rate_limit: 16MB
+  per_stream_rate_limit_burst: 32MB
+
+# Without retention_enabled the limits_config retention above is inert and
+# nothing is ever deleted.
+compactor:
+  # MUST be on the volume, not /tmp. The compactor marks chunks for deletion
+  # here and a sweeper removes them retention_delete_delay later. If the
+  # container restarts inside that window — every redeploy — markers on
+  # ephemeral storage are lost, and the chunks they referenced are already
+  # unlinked from the index: they stay on disk forever with nothing pointing at
+  # them. A slow, silent leak of exactly the volume retention is meant to
+  # reclaim. Pending delete requests and series_progress.boltdb live here too.
+  working_directory: /data/loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 24h
+  delete_request_store: filesystem
 
 schema_config:
   configs:
@@ -29,6 +80,7 @@ ruler:
   alertmanager_url: ${RAILWAY_PROMETHEUS_ALERTMANAGER_ENDPOINT}
 
 pattern_ingester:
+  enabled: true # powers Grafana Logs Drilldown "Patterns" (log-template detection)
   lifecycler:
     min_ready_duration: 1s
 
@@ -42,4 +94,3 @@ frontend:
 
 query_scheduler:
   use_scheduler_ring: false
-
