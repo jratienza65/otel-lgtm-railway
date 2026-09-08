@@ -76,23 +76,12 @@ You do not deploy all of it. Pick the row that matches what you are doing.
 | **Full stack, both** | `otelcol/gateway` + `alloy/faro` + backends | OTLP-first, but you also want browser RUM. Alloy parses Faro and forwards to otelcol. |
 | **Edge agent only** | `otelcol/agent` | One per app project. Forwards to a gateway that already exists elsewhere. No backends. |
 | **RUM ingest only** | `alloy/faro` | Take browser RUM and forward it to an OTLP endpoint someone else runs. |
-| **RUM into your own backends** | `alloy/faro` + `loki` `tempo` `prometheus` `grafana` | Browser RUM written straight to the backends, with no collector anywhere. |
 
 The two gateways are alternatives — deploy one or the other, never both. `otelcol/gateway` is the
 conventional choice, and OTTL processors are easier to reason about in its YAML than in Alloy's
 syntax. `alloy/gateway` exists because otelcol cannot accept the Faro Web SDK's payload at all, so a
 RUM-first deployment would otherwise run Alloy *and* otelcol just to have otelcol relay what Alloy
 already parsed.
-
-`alloy/faro` picks its destination from the variables it is given: `OTEL_EXPORTER_OTLP_ENDPOINT`
-forwards to a gateway, while `RAILWAY_LOKI_ENDPOINT` plus `RAILWAY_TEMPO_ENDPOINT` writes to the
-backends directly. With neither set it refuses to start rather than silently dropping telemetry.
-
-That direct path still needs Prometheus alongside Tempo — `faro.receiver` produces no metrics of its
-own, and Tempo will not start without somewhere to remote-write the span metrics its generator
-derives. The RED numbers on the frontend dashboard are LogQL aggregations over the Faro events in
-Loki, which is how Grafana Cloud's Frontend Observability derives them too. What the direct path
-saves is the collector, not a backend.
 
 ## Services
 
