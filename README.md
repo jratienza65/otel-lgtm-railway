@@ -158,6 +158,7 @@ Every service that accepts writes requires an explicit decision. Set exactly one
 | `RAILWAY_OTEL_HTPASSWD` | `otelcol/gateway` | Require basic auth. One `user:password` line per producer, so any single producer can be rotated or revoked alone. Plaintext works; so does a bcrypt hash from `htpasswd -nbB <user> <password>`. |
 | `RAILWAY_OTEL_ALLOW_UNAUTHENTICATED` | `otelcol/gateway` | `true` to run an open endpoint instead. |
 | `FARO_API_KEY` | `alloy/*` | Require clients to send it as the `x-api-key` header. |
+| `OTEL_INGEST_USERNAME` / `OTEL_INGEST_PASSWORD` | `alloy/gateway` | Required. Protects its OTLP receiver on 4317/4318. No opt-out — use `otelcol/gateway` if you need unauthenticated OTLP. |
 | `FARO_ALLOW_UNAUTHENTICATED` | `alloy/*` | `true` to run an open endpoint instead. |
 
 > Validation: if neither variable in a pair is set, the service refuses to start and prints both
@@ -173,6 +174,15 @@ Every service that accepts writes requires an explicit decision. Set exactly one
 The Faro key ships inside app bundles, so it filters noise rather than authenticating; the rate
 limit, the payload cap and the CORS allowlist are the real controls on that path. An endpoint with no
 key at all is still open to everyone who finds the URL.
+
+`alloy/gateway` has a second ingest path — an OTLP receiver on 4317/4318 — and it is authenticated
+unconditionally. Those credentials are held by services rather than shipped inside a browser bundle,
+so the noise-filtering argument that makes the Faro key optional does not apply. A deployment that
+genuinely wants open OTLP should use `otelcol/gateway`, which supports it by name.
+
+Neither Alloy service authenticates its own HTTP server on 12345 — Alloy has no setting for that. It
+serves the component graph and `/metrics`, and it does not expose configured secrets, but keep it on
+the private network: Railway routes the public domain to 12347, so leave it that way.
 
 ### Faro ingest
 

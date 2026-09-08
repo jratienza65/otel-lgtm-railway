@@ -5,7 +5,23 @@
 # FARO_API_KEY silently produces a wide-open public write endpoint — anyone who
 # finds the URL can flood your logs. That is a bad thing to arrive at by
 # forgetting a variable, so it has to be asked for by name instead.
+#
+# The OTLP receiver is gated too, and unconditionally: those credentials belong
+# to services rather than shipping inside a browser bundle, so there is no
+# noise-filtering-only case for leaving them off. A deployment that wants
+# unauthenticated OTLP should use otelcol/gateway, which supports it explicitly.
 set -eu
+
+if [ -z "${OTEL_INGEST_USERNAME:-}" ] || [ -z "${OTEL_INGEST_PASSWORD:-}" ]; then
+	echo "FATAL: OTEL_INGEST_USERNAME and OTEL_INGEST_PASSWORD are required." >&2
+	echo "" >&2
+	echo "They protect the OTLP receiver on 4317/4318, which accepts writes into" >&2
+	echo "every backend. Producers send: Authorization: Basic <base64 user:password>" >&2
+	echo "" >&2
+	echo "For unauthenticated OTLP ingest, use otelcol/gateway with" >&2
+	echo "RAILWAY_OTEL_ALLOW_UNAUTHENTICATED=true instead." >&2
+	exit 1
+fi
 
 if [ -n "${FARO_API_KEY:-}" ]; then
 	exec /bin/alloy "$@"

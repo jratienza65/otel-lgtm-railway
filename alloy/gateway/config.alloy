@@ -74,15 +74,27 @@ faro.receiver "clients" {
 	}
 }
 
-// App SDKs. Keep this on the private network — unlike the Faro port there is no
-// api_key in front of it.
+// Credentials for the OTLP receiver below. Unlike the Faro path — where the key
+// ships inside app bundles and only filters noise — these are real credentials
+// held by services, so they are required rather than optional. otelcol/gateway
+// offers an unauthenticated mode for its OTLP ingest; the equivalent here is to
+// deploy alloy/faro, which has no OTLP receiver at all.
+otelcol.auth.basic "ingest" {
+	username = sys.env("OTEL_INGEST_USERNAME")
+	password = sys.env("OTEL_INGEST_PASSWORD")
+}
+
+// App SDKs. Authenticated, and normally reached only over the private network —
+// Railway routes the public domain to the Faro port, not to these.
 otelcol.receiver.otlp "apps" {
 	grpc {
 		endpoint = "[::]:4317"
+		auth     = otelcol.auth.basic.ingest.handler
 	}
 
 	http {
 		endpoint = "[::]:4318"
+		auth     = otelcol.auth.basic.ingest.handler
 	}
 
 	output {
