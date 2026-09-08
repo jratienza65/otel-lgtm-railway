@@ -6,7 +6,10 @@ ARG VERSION=v1.18.1
 FROM grafana/alloy:${VERSION}
 
 COPY ./config.alloy /etc/alloy/config.alloy
+COPY ./entrypoint.sh /entrypoint.sh
 
 # --server.http.listen-addr is Alloy's own UI/metrics port and stays private;
 # Railway routes the public domain to the faro.receiver port (12347) instead.
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+
 CMD ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
