@@ -46,10 +46,16 @@ exporters:
     endpoint: ${env:RAILWAY_LOKI_ENDPOINT}
     tls:
       insecure: true
-  # otlp/profiles:
-  #   endpoint: $RAILWAY_PYROSCOPE_ENDPOINT
-  #   tls:
-  #     insecure: true
+  # Profiles — the "P" in LGTMP — to Pyroscope's OTLP ingest. This is otlphttp,
+  # not otlp: Pyroscope accepts OTLP profiles over HTTP on :4040 alongside its
+  # query API, and its gRPC port (9095) is internal component traffic rather than
+  # an ingest path. The exporter appends the /v1development/profiles path itself,
+  # so the endpoint is the bare base URL with no path. Requires the
+  # service.profilesSupport feature gate, which the Dockerfile's CMD sets.
+  otlphttp/profiles:
+    endpoint: ${env:RAILWAY_PYROSCOPE_ENDPOINT}
+    tls:
+      insecure: true
   debug/metrics:
     verbosity: detailed
   debug/traces:
@@ -75,6 +81,8 @@ service:
       processors: [batch/logs]
       exporters: [otlphttp/logs]
       #exporters: [otlphttp/logs,debug/logs]
-    # profiles:
-    #   receivers: [otlp]
-    #   exporters: [otlp/profiles]
+    # No batch processor: the profiles signal is alpha and batch does not accept
+    # it, so the pipeline would fail to build.
+    profiles:
+      receivers: [otlp]
+      exporters: [otlphttp/profiles]

@@ -1,0 +1,63 @@
+# Pyroscope — continuous profiling, the "P" in LGTMP.
+#
+# Single node, monolithic (target=all). Pyroscope 2.x runs
+# `architecture_storage: v1-v2-dual`, so BOTH storage engines are live at once:
+# v1's pyroscopedb and v2's object-store-backed blocks. Everything below has to
+# account for both, which is why there are two sets of paths and two retention
+# knobs.
+
+server:
+  http_listen_port: 4040
+
+# ---------------------------------------------------------------- storage paths
+# Every path is absolute and under /data. This is not cosmetic: v2's metastore,
+# compactor and store-gateway directories default to RELATIVE paths
+# (./data/v2/metastore/*, ./data-compactor, ./data/pyroscope-sync), which land on
+# the container filesystem rather than the volume. They are lost on every
+# redeploy, and the metastore's raft state not being durable is enough to
+# crash-loop the service on boot.
+
+# v1 ingester segment WAL and head blocks.
+pyroscopedb:
+  data_path: /data
+  # v1 enforces retention by disk pressure as well as age, and the default floor
+  # is 10GB free. A Railway volume starts at 5GB, so the floor can never be
+  # satisfied and enforcement runs permanently, evicting profiles as fast as they
+  # arrive regardless of retention_period. Keep this well under the smallest
+  # volume the stack will run on, and raise it if you grow the volume.
+  min_free_disk_gb: 1
+  # Secondary guard, as a fraction. Unlike the absolute floor above this one
+  # scales with the volume, so it stays correct after a resize.
+  min_disk_available_percentage: 0.05
+
+# v2 long-term blocks, with the local filesystem standing in for object storage.
+storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/v2/shared
+
+# v2 metastore (raft consensus). Relative by default — must be pinned.
+metastore:
+  data_dir: /data/v2/metastore/data
+  raft:
+    dir: /data/v2/metastore/raft
+
+# Compactor and store-gateway working directories, also relative by default.
+compactor:
+  data_dir: /data/compactor
+store_gateway:
+  bucket_store:
+    sync_dir: /data/pyroscope-sync
+
+# -------------------------------------------------------------------- retention
+# Two periods, because two storage engines are active. Setting only one leaves
+# the other engine's data to accumulate until the volume fills.
+limits:
+  # v2 blocks. Pyroscope's own default is 31d; stated explicitly so the intended
+  # retention is visible next to the v1 figure rather than inherited silently.
+  retention_period: 31d
+  # v1 blocks. Defaults to 0s, which means never delete — so without this, v1
+  # data grows without bound for as long as the service runs. Profiles are large
+  # relative to logs and traces, so this is the knob most likely to fill a
+  # volume. Keep it aligned with retention_period above.
+  compactor_blocks_retention_period: 31d

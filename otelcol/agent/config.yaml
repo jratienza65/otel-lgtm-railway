@@ -129,3 +129,10 @@ service:
       processors: [resource/railway, batch]
       exporters: [otlphttp/external]
       #exporters: [debug/logs]
+    # Profiles pass straight through. No processors: the signal is alpha and
+    # neither batch nor resource accepts it, so either would fail the build —
+    # which also means profiles carry no deployment.environment.name stamp. The
+    # gateway is where that gap gets closed if it matters.
+    profiles:
+      receivers: [otlp]
+      exporters: [otlphttp/external]

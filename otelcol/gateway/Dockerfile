@@ -20,3 +20,8 @@ COPY ./entrypoint.sh /entrypoint.sh
 # but not executable — which keeps this working regardless of the checkout's
 # file mode.
 ENTRYPOINT ["/bin/busybox", "sh", "/entrypoint.sh"]
+
+# The profiles signal is alpha and gated: without this the collector refuses to
+# start once a `profiles` pipeline exists. entrypoint.sh appends "$@" after the
+# config flags it selects, so this arrives as a collector argument.
+CMD ["--feature-gates=+service.profilesSupport"]

@@ -77,6 +77,10 @@ You do not deploy all of it. Pick the row that matches what you are doing.
 | **Edge agent only** | `otelcol/agent` | One per app project. Forwards to a gateway that already exists elsewhere. No backends. |
 | **RUM ingest only** | `alloy/faro` | Take browser RUM and forward it to an OTLP endpoint someone else runs. |
 
+`pyroscope` is additive rather than another topology: it slots into any row that includes the
+backends, and a collector only exports profiles when `RAILWAY_PYROSCOPE_ENDPOINT` is set. Leave it
+out and nothing else changes.
+
 The two gateways are alternatives — deploy one or the other, never both. `otelcol/gateway` is the
 conventional choice, and OTTL processors are easier to reason about in its YAML than in Alloy's
 syntax. `alloy/gateway` exists because otelcol cannot accept the Faro Web SDK's payload at all, so a
@@ -94,11 +98,12 @@ already parsed.
 | `loki` | `grafana/loki` | Logs. Tiered retention, compaction enabled. |
 | `tempo` | `grafana/tempo` | Traces. Compaction, span metrics, service graphs. |
 | `prometheus` | `prom/prometheus` | Metrics. OTLP and remote-write receivers, bounded retention. |
+| `pyroscope` | `grafana/pyroscope` | Continuous profiling. OTLP profiles ingest and query API on one port. |
 | `grafana` | `grafana/grafana-oss` | Provisioned datasources, correlation wiring, dashboards. |
 
 Ports: otelcol `4317` gRPC / `4318` HTTP, health on `13133/ready`; alloy `12347` for Faro (the port
 Railway routes to) and `12345` for Alloy's own UI; loki `3100`; tempo `3200` HTTP, `9096` gRPC,
-`7947` memberlist; prometheus `9090`; grafana `3000`.
+`7947` memberlist; prometheus `9090`; pyroscope `4040` (ingest and queries both); grafana `3000`.
 
 ## Volumes
 
@@ -109,6 +114,7 @@ Four services keep state; the rest are stateless.
 | `loki` | `/data` | Chunks, TSDB index, and the compactor's retention markers |
 | `tempo` | `/data` | WAL, trace blocks, metrics-generator WAL |
 | `prometheus` | `/data` | TSDB, WAL, head chunks |
+| `pyroscope` | `/data` | v1 segment WAL, v2 blocks, metastore raft state, compactor scratch |
 | `grafana` | `/data/grafana` | SQLite DB — users, API keys, dashboards saved from the UI |
 
 Set `RAILWAY_RUN_UID=0` on each. These images run as a non-root user and the mounted volume is owned
@@ -148,6 +154,7 @@ exists.
 | `RAILWAY_PROMETHEUS_ENDPOINT` | grafana | `http://<prometheus>:9090` |
 | `RAILWAY_PROMETHEUS_REMOTE_WRITE_ENDPOINT` | tempo | `http://<prometheus>:9090/api/v1/write` |
 | `RAILWAY_PROMETHEUS_ALERTMANAGER_ENDPOINT` | loki | Alertmanager URL, for the ruler. |
+| `RAILWAY_PYROSCOPE_ENDPOINT` | gateways, grafana | `http://<pyroscope>:4040` — the same value on both, unlike the others |
 
 ### Ingest authentication
 
@@ -252,6 +259,26 @@ RAILWAY_OTEL_ALLOW_UNAUTHENTICATED=true
 
 It starts, logs three warnings saying the endpoint is open, and accepts unauthenticated writes.
 
+## Profiling
+
+`pyroscope` adds the P to LGTM. One service, one port: 4040 serves both the OTLP profiles ingest the
+collector writes to and the query API Grafana reads, which is why `RAILWAY_PYROSCOPE_ENDPOINT` is the
+one endpoint variable taking the same value on a collector and on Grafana. Pyroscope's gRPC port
+(9095) is internal component traffic, not an ingest path.
+
+Two things differ from the other three signals:
+
+- The profiles pipeline carries **no processors**. The signal is alpha and neither `batch` nor
+  `resource` accepts it, so adding either fails the pipeline build. Profiles skip the record batching
+  and the environment stamping the other signals get.
+- Both collectors need `--feature-gates=+service.profilesSupport`, set in their Dockerfiles. Without
+  it the collector refuses to start as soon as a `profiles` pipeline exists, rather than skipping it.
+
+Pyroscope 2.x runs `architecture_storage: v1-v2-dual`, so two storage engines are live at once, each
+with its own retention period and its own paths. Both are pinned explicitly in
+`pyroscope/config.yaml` — the comments there explain why the shipped defaults are unsafe on a Railway
+volume.
+
 ## Local development
 
 Configs are **copied into the image at build time**, not mounted, so a config change needs a
@@ -262,7 +289,7 @@ rebuild and redeploy. Upgrades are a one-line `ARG VERSION` bump in the service'
 docker build ./loki
 docker build ./otelcol/gateway
 
-# Verify Loki and Tempo — both reject unknown config keys, so a clean run here
+# Verify Loki, Tempo and Pyroscope — all reject unknown config keys, so a clean run here
 # is a real schema check, not just YAML parsing
 docker run --rm $(docker build -q ./loki) -config.file=/etc/loki/config.yaml -verify-config
 
@@ -280,4 +307,8 @@ docker run --rm --entrypoint /otelcol-contrib \
 # Verify an Alloy config
 docker run --rm --entrypoint /bin/alloy $(docker build -q ./alloy/gateway) \
   validate /etc/alloy/config.alloy
+
+# Verify Pyroscope. It rejects unknown keys, so a clean start is a real schema
+# check; its effective config, defaults filled in, is at /api/v1/status/config.
+docker run --rm -v /tmp/pyro:/data $(docker build -q ./pyroscope)
 ```

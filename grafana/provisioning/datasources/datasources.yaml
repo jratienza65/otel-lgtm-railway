@@ -57,8 +57,9 @@ datasources:
       lokiSearch:
         datasourceUid: 'loki'
 
-  # - name: Pyroscope
-  #   type: grafana-pyroscope-datasource
-  #   uid: pyroscope
-  #   url: $RAILWAY_PYROSCOPE_ENDPOINT
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    uid: pyroscope
+    url: $RAILWAY_PYROSCOPE_ENDPOINT
+    editable: true
 
